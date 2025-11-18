@@ -1,0 +1,728 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../providers/transaction_provider.dart';
+import '../providers/theme_provider.dart';
+import '../models/transaction.dart';
+
+class AddTransactionPage extends StatefulWidget {
+  const AddTransactionPage({super.key});
+
+  @override
+  State<AddTransactionPage> createState() => _AddTransactionPageState();
+}
+
+class _AddTransactionPageState extends State<AddTransactionPage> with SingleTickerProviderStateMixin {
+  late PageController _pageController;
+  int _currentPage = 0;
+  String _transactionType = 'expense';
+  final _amountController = TextEditingController();
+  final _noteController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+  
+  String? _selectedCategory;
+  final _customCategoryController = TextEditingController();
+  
+  // Predefined categories with icons
+  final Map<String, IconData> _expenseCategories = {
+    'Makanan & Minuman': Icons.restaurant_rounded,
+    'Transport': Icons.directions_car_rounded,
+    'Belanja': Icons.shopping_bag_rounded,
+    'Hiburan': Icons.movie_rounded,
+    'Tagihan': Icons.receipt_long_rounded,
+    'Kesehatan': Icons.medical_services_rounded,
+    'Pendidikan': Icons.school_rounded,
+    'Lainnya': Icons.more_horiz_rounded,
+  };
+  
+  final Map<String, IconData> _incomeCategories = {
+    'Gaji': Icons.wallet_rounded,
+    'Bonus': Icons.card_giftcard_rounded,
+    'Investasi': Icons.trending_up_rounded,
+    'Hadiah': Icons.redeem_rounded,
+    'Freelance': Icons.work_outline_rounded,
+    'Penjualan': Icons.sell_rounded,
+    'Lainnya': Icons.more_horiz_rounded,
+  };
+  
+  final Map<String, IconData> _customCategories = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _amountController.dispose();
+    _customCategoryController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+      _transactionType = page == 0 ? 'expense' : 'income';
+      _selectedCategory = null; // Reset category when switching
+    });
+  }
+
+  void _switchType(String type) {
+    final targetPage = type == 'expense' ? 0 : 1;
+    _pageController.animateToPage(
+      targetPage,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+  
+  Map<String, IconData> get _currentCategories {
+    final base = _transactionType == 'expense' 
+        ? Map<String, IconData>.from(_expenseCategories)
+        : Map<String, IconData>.from(_incomeCategories);
+    base.addAll(_customCategories);
+    return base;
+  }
+  
+  IconData _getCategoryIcon(String category) {
+    return _currentCategories[category] ?? Icons.category_rounded;
+  }
+  
+  Future<void> _showCustomCategoryDialog() async {
+    // Get theme before showing dialog to avoid context issues
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDark = themeProvider.isDarkMode;
+    final backgroundColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1B1B1B);
+    final secondaryTextColor = isDark ? Colors.white60 : Colors.grey;
+    final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+    final cursorColor = isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF);
+    
+    final customCategory = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: backgroundColor,
+        title: Text(
+          'Pilih Kategori',
+          style: TextStyle(
+            color: textColor,
+          ),
+        ),
+        content: TextField(
+          controller: _customCategoryController,
+          style: TextStyle(
+            color: textColor,
+          ),
+          cursorColor: cursorColor,
+          decoration: InputDecoration(
+            hintText: 'Masukkan nama kategori',
+            hintStyle: TextStyle(
+              color: secondaryTextColor,
+            ),
+            border: OutlineInputBorder(
+              borderSide: BorderSide(
+                color: borderColor,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(
+                color: borderColor,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(
+                color: cursorColor,
+                width: 2,
+              ),
+            ),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: secondaryTextColor,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_customCategoryController.text.isNotEmpty) {
+                Navigator.pop(dialogContext, _customCategoryController.text);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF5D5FEF),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tambah'),
+          ),
+        ],
+      ),
+    );
+    
+    if (customCategory != null && customCategory.isNotEmpty) {
+      setState(() {
+        _selectedCategory = customCategory;
+        // Add to custom categories with a default icon
+        _customCategories[customCategory] = Icons.label_rounded;
+      });
+      _customCategoryController.clear();
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF5D5FEF),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF5D5FEF),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedTime) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
+  void _saveTransaction() {
+    if (_amountController.text.isEmpty || _selectedCategory == null || _selectedCategory!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mohon isi jumlah dan kategori'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(_amountController.text.replaceAll('.', ''));
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Jumlah tidak valid'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Combine date and time
+    final DateTime combinedDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
+    final transaction = Transaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: _selectedCategory!,
+      amount: amount,
+      date: combinedDateTime,
+      category: _selectedCategory!,
+      type: _transactionType,
+      note: _noteController.text.isEmpty ? null : _noteController.text,
+    );
+
+    Provider.of<TransactionProvider>(context, listen: false)
+        .addTransaction(transaction);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Transaksi berhasil ditambahkan'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        final isDark = themeProvider.isDarkMode;
+        return Scaffold(
+          backgroundColor: themeProvider.getBackgroundColor(isDark),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: themeProvider.getTextColor(isDark),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Text(
+                        'Tambah Catatan',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: themeProvider.getTextColor(isDark),
+                        ),
+                      ),
+                      const SizedBox(width: 40),
+                    ],
+                  ),
+                ),
+
+            // Type Selector with swipe indicator
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: themeProvider.getCardColor(isDark),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildTypeButton(
+                            'expense',
+                            'Pengeluaran',
+                            _transactionType == 'expense',
+                            isDark,
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildTypeButton(
+                            'income',
+                            'Pemasukan',
+                            _transactionType == 'income',
+                            isDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '← Geser untuk berpindah →',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white38 : Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: _onPageChanged,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  // Expense Form
+                  _buildTransactionForm(isDark, themeProvider),
+                  // Income Form
+                  _buildTransactionForm(isDark, themeProvider),
+                ],
+              ),
+            ),
+
+                    // Amount Input
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: themeProvider.getCardColor(isDark),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Rp.',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _amountController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                _ThousandsSeparatorInputFormatter(),
+                              ],
+                              cursorColor: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                              ),
+                              decoration: InputDecoration(
+                                hintText: '0',
+                                hintStyle: TextStyle(
+                                  color: themeProvider.getTextColor(isDark).withOpacity(0.3),
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Category Dropdown
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: themeProvider.getCardColor(isDark),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedCategory,
+                          hint: Row(
+                            children: [
+                              Icon(
+                                Icons.category_rounded,
+                                color: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Pilih kategori',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: themeProvider.getTextColor(isDark),
+                                ),
+                              ),
+                            ],
+                          ),
+                          isExpanded: true,
+                          dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          icon: Icon(
+                            Icons.arrow_drop_down,
+                            color: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                          ),
+                          items: [
+                            ..._currentCategories.keys.map((String category) {
+                              return DropdownMenuItem<String>(
+                                value: category,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _getCategoryIcon(category),
+                                      color: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      category,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: themeProvider.getTextColor(isDark),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            DropdownMenuItem<String>(
+                              value: null,
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.add_circle_outline,
+                                    color: Color(0xFF34C759),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    '+ Tambah Kategori Baru',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: const Color(0xFF34C759),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onChanged: (String? newValue) {
+                            if (newValue == null) {
+                              _showCustomCategoryDialog();
+                            } else {
+                              setState(() {
+                                _selectedCategory = newValue;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Date Input
+                    InkWell(
+                      onTap: () => _selectDate(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: themeProvider.getCardColor(isDark),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              color: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              DateFormat('dd MMMM yyyy', 'id_ID')
+                                  .format(_selectedDate),
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: themeProvider.getTextColor(isDark),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Time Input
+                    InkWell(
+                      onTap: () => _selectTime(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: themeProvider.getCardColor(isDark),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time_rounded,
+                              color: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _selectedTime.format(context),
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: themeProvider.getTextColor(isDark),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Note Input
+                    TextField(
+                      controller: _noteController,
+                      maxLines: 4,
+                      cursorColor: isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF),
+                      style: TextStyle(
+                        color: themeProvider.getTextColor(isDark),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Keterangan (Opsional)',
+                        hintStyle: TextStyle(
+                          color: themeProvider.getSecondaryTextColor(isDark),
+                          fontSize: 15,
+                        ),
+                        filled: true,
+                        fillColor: themeProvider.getCardColor(isDark),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(14),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Save Button
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _saveTransaction,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF5D5FEF),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Simpan',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTypeButton(String type, String label, bool isActive, bool isDark) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _transactionType = type;
+          _selectedCategory = null; // Reset category when switching type
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isActive 
+              ? (isDark ? const Color(0xFF8E90FF) : const Color(0xFF5D5FEF))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: isActive 
+                ? Colors.white 
+                : (isDark ? Colors.white70 : const Color(0xFF1B1B1B)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+          color: const Color(0xFF1B1B1B).withOpacity(0.5),
+        ),
+        prefixIcon: Icon(
+          icon,
+          color: const Color(0xFF5D5FEF),
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF7FCF7),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.all(16),
+      ),
+    );
+  }
+}
+
+// Thousands separator formatter for currency input
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    final number = int.tryParse(newValue.text.replaceAll('.', ''));
+    if (number == null) {
+      return oldValue;
+    }
+
+    final formatter = NumberFormat('#,###');
+    final newText = formatter.format(number).replaceAll(',', '.');
+
+    return TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
+    );
+  }
+}
