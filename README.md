@@ -113,14 +113,6 @@ lib/
 - **Surface**: `#F7FCF7` (Light Green)
 - **Text**: `#1B1B1B` (Dark Gray)
 
-## Data Sample
-
-Aplikasi dilengkapi dengan sample data untuk demonstrasi:
-- Gaji: Rp 8.700.000 (Income)
-- Online Shopping: Rp 360.000 (Expense)
-- Belanja: Rp 349.000 (Expense)
-- Makan: Rp 24.000 (Expense)
-
 Data disimpan secara otomatis di local storage menggunakan SharedPreferences.
 
 ## Catatan Pengembangan
