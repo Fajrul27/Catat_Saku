@@ -4,11 +4,11 @@ Aplikasi pencatat keuangan untuk melacak pengeluaran dan pemasukan harian Anda, 
 
 ## Fitur
 
-- 📊 **Dashboard** - Menampilkan saldo saat ini, total pengeluaran, dan riwayat transaksi terbaru
-- ➕ **Tambah Transaksi** - Form untuk menambah catatan pengeluaran atau pemasukan dengan kategori, tanggal, dan catatan
-- 📈 **Grafik Riwayat** - Visualisasi transaksi dengan grafik interaktif (mingguan/bulanan/tahunan)
-- ⚙️ **Pengaturan** - Konfigurasi tema, mata uang, backup, restore, dan reset data
-- 💾 **Penyimpanan Lokal** - Data tersimpan secara otomatis menggunakan SharedPreferences
+- **Dashboard** - Menampilkan saldo saat ini, total pengeluaran, dan riwayat transaksi terbaru
+- **Tambah Transaksi** - Form untuk menambah catatan pengeluaran atau pemasukan dengan kategori, tanggal, dan catatan
+- **Grafik Riwayat** - Visualisasi transaksi dengan grafik interaktif (mingguan/bulanan/tahunan)
+- **Pengaturan** - Konfigurasi tema, mata uang, backup, restore, dan reset data
+- **Penyimpanan Lokal** - Data tersimpan secara otomatis menggunakan SharedPreferences
 
 ## Teknologi
 
